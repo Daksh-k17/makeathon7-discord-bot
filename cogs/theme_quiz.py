@@ -1,36 +1,8 @@
 import discord
 from discord.ext import commands
-import asyncio
 import random as rd
-
-# Quiz questions and answers
-EASY_QUESTIONS = ["What is 2 + 2?", "What is the capital of France?", "What is the color of the sky?", "What is the square root of 16?",
-                  "Who wrote 'To Kill a Mockingbird'?", "What is 15 x 15?", "What is the chemical symbol for Gold?", "Solve: 12 * (3 + 2) / 6"]
-EASY_ANSWERS = ["4", "paris", "blue", "4", "harper lee", "225", "au", "10"]
-
-MEDIUM_QUESTIONS = [
-    "What is the square root of 49?", "Who painted the Mona Lisa?", "What is the smallest prime number?",
-    "What is the capital of Australia?", "What is 25 x 25?", "What is the chemical symbol for Iron?",
-    "What is the largest ocean on Earth?", "Who wrote the play 'Hamlet'?", "What is the boiling point of water in Celsius?",
-    "What planet is known as the Red Planet?"
-]
-
-MEDIUM_ANSWERS = [
-    "7", "leonardo da vinci", "2", "canberra", "625", "fe",
-    "pacific", "william shakespeare", "100", "mars"
-]
-
-HARD_QUESTIONS = [
-    "What is the square root of 144?", "Who developed the theory of general relativity?", "What is the capital of Iceland?",
-    "What is the chemical symbol for Mercury?", "Solve: 18 * (5 + 2) / 3", "Which planet has the most moons in the solar system?",
-    "What is the powerhouse of the cell?", "What is the value of Pi (up to 3 decimal places)?", "Who wrote the novel '1984'?",
-    "What is the national animal of Scotland?"
-]
-
-HARD_ANSWERS = [
-    "12", "albert einstein", "reykjavik", "hg", "42", "saturn",
-    "mitochondria", "3.142", "george orwell", "unicorn"
-]
+import asyncio
+from datetime import datetime, timedelta
 
 # Role assignment helper functions
 async def assign_role(ctx, role_name):
@@ -45,7 +17,6 @@ async def assign_role(ctx, role_name):
     else:
         await ctx.send(f"The '{role_name}' role does not exist. Please contact an admin to create it.")
 
-
 def check_role(ctx, role_name):
     """Check if the user has the required role."""
     role = discord.utils.get(ctx.author.roles, name=role_name)
@@ -57,6 +28,42 @@ MEDIUM_ROLE = "Medium"
 HARD_ROLE = "Hard"
 WINNER_ROLE = "Winner"
 
+# Sample questions and answers
+EASY_QUIZ = {
+    "What is 2 + 2?": "4",
+    "What is the capital of France?": "paris",
+    "What is the color of the sky?": "blue",
+    "What is the square root of 16?": "4",
+    "Who wrote 'To Kill a Mockingbird'?": "harper lee",
+    "What is 15 x 15?": "225",
+    "What is the chemical symbol for Gold?": "au",
+    "Solve: 12 * (3 + 2) / 6": "10"
+}
+
+MEDIUM_QUIZ = {
+    "What is the square root of 49?": "7",
+    "Who painted the Mona Lisa?": "leonardo da vinci",
+    "What is the smallest prime number?": "2",
+    "What is the capital of Australia?": "canberra",
+    "What is 25 x 25?": "625",
+    "What is the chemical symbol for Iron?": "fe",
+    "What is the largest ocean on Earth?": "pacific",
+    "Who wrote the play 'Hamlet'?": "william shakespeare",
+    "What is the boiling point of water in Celsius?": "100",
+    "What planet is known as the Red Planet?": "mars"
+}
+HARD_QUIZ = {
+    "What is the square root of 49?": "7",
+    "Who painted the Mona Lisa?": "leonardo da vinci",
+    "What is the smallest prime number?": "2",
+    "What is the capital of Australia?": "canberra",
+    "What is 25 x 25?": "625",
+    "What is the chemical symbol for Iron?": "fe",
+    "What is the largest ocean on Earth?": "pacific",
+    "Who wrote the play 'Hamlet'?": "william shakespeare",
+    "What is the boiling point of water in Celsius?": "100",
+    "What planet is known as the Red Planet?": "mars"
+}
 
 # Quiz classes
 class Easy_Quiz(commands.Cog):
@@ -71,44 +78,79 @@ class Easy_Quiz(commands.Cog):
         user = ctx.author
         easy_score = 0
         already_asked_questions = []
-        no_of_questions = min(10, len(EASY_QUESTIONS))  # Prevent index errors if there are fewer than 10 questions.
+        no_of_questions = min(10, len(EASY_QUIZ))  # Prevent index errors if there are fewer than 10 questions.
 
-        if not EASY_QUESTIONS:
+        if not EASY_QUIZ:
             await ctx.send("No questions are available for the Easy Quiz.")
             return
 
         await ctx.send(f"{user.mention}, check your DM for the quiz!")
 
-        for _ in range(no_of_questions):
-            # Select a random question
-            available_questions = [q for q in EASY_QUESTIONS if q not in already_asked_questions]
-            if not available_questions:
-                break
+        try:
+            dm_channel = await user.create_dm()
 
-            question = rd.choice(available_questions)
-            correct_answer = EASY_ANSWERS[EASY_QUESTIONS.index(question)]
-            already_asked_questions.append(question)
+            for _ in range(no_of_questions):
+                available_questions = [q for q in EASY_QUIZ if q not in already_asked_questions]
+                if not available_questions:
+                    await dm_channel.send("No more questions available.")
+                    break
 
-            await user.send(f"**Question:** {question}")
+                question = rd.choice(available_questions)
+                correct_answer = EASY_QUIZ[question]
+                already_asked_questions.append(question)
 
-            def check(msg):
-                return msg.author == user and isinstance(msg.channel, discord.DMChannel)
+                # Send the question to DMs
+                await dm_channel.send(f"**Question:** {question}")
+                timer_message = await dm_channel.send("Time remaining: 10 seconds")
 
-            try:
-                response = await self.bot.wait_for("message", check=check, timeout=10)
-                if response.content.strip().lower() == correct_answer:
-                    easy_score += 1
-                    await user.send("Correct!")
-                else:
-                    await user.send(f"Wrong! The correct answer was: {correct_answer}")
-            except asyncio.TimeoutError:
-                await user.send("You ran out of time!")
+                # Check the answer from the user
+                def check(msg):
+                    return msg.author == user and msg.channel == dm_channel
 
-        await user.send(f"Quiz finished! Your total score is: {easy_score}")
-        await ctx.send(f"{user.mention}, your quiz is complete! Check your DM for your score.")
-        if easy_score == no_of_questions:
-            await assign_role(ctx, MEDIUM_ROLE)
+                question_end_time = datetime.now() + timedelta(seconds=10)
+                answered = False
 
+                async def update_timer():
+                    while datetime.now() < question_end_time:
+                        remaining_time = int((question_end_time - datetime.now()).total_seconds())
+                        await timer_message.edit(content=f"Time remaining: {remaining_time} seconds")
+                        await asyncio.sleep(1)
+
+                async def check_answer():
+                    nonlocal answered
+                    try:
+                        response = await self.bot.wait_for("message", check=check, timeout=10)
+                        if response.content.strip().lower() == correct_answer:
+                            nonlocal easy_score
+                            easy_score += 1
+                            await dm_channel.send("Correct!")
+                        else:
+                            await dm_channel.send(f"Wrong! The correct answer was: {correct_answer}")
+                        answered = True
+                    except asyncio.TimeoutError:
+                        pass
+
+                timer_task = asyncio.create_task(update_timer())
+                answer_task = asyncio.create_task(check_answer())
+
+                await asyncio.wait([timer_task, answer_task], return_when=asyncio.FIRST_COMPLETED)
+
+                if not answered:
+                    await dm_channel.send(f"Time's up! The correct answer was: {correct_answer}")
+
+            # Send final score to the 'easy-quiz' channel
+            easy_quiz_channel = discord.utils.get(ctx.guild.channels, name="easy-quiz")
+            if easy_quiz_channel:
+                await easy_quiz_channel.send(f"{user.mention}, your Easy Quiz is complete! Your total score is: {easy_score}")
+
+            # Assign new role if the user scores perfectly
+            if easy_score == no_of_questions:
+                await assign_role(ctx, MEDIUM_ROLE)
+
+        except discord.Forbidden:
+            await ctx.send(f"{user.mention}, I cannot DM you. Please make sure your DMs are open.")
+        except Exception as e:
+            await ctx.send(f"An error occurred: {str(e)}")
 
 class Medium_Quiz(commands.Cog):
     """Medium-Quiz Cog"""
@@ -122,8 +164,12 @@ class Medium_Quiz(commands.Cog):
         user = ctx.author
         medium_score = 0
         already_asked_questions = []
-        no_of_questions = min(5, len(MEDIUM_QUESTIONS))  # Prevent index errors if there are fewer than 5 questions.
+        no_of_questions = min(10, len(MEDIUM_QUIZ))  # Prevent index errors if there are fewer than 10 questions.
 
+        if not MEDIUM_QUIZ:
+            await ctx.send("No questions are available for the Medium Quiz.")
+            return
+        
         if not check_role(ctx, MEDIUM_ROLE):
             await ctx.send(
                 "You don't have access to the Medium Quiz. Score full marks in the Easy Quiz first!"
@@ -132,35 +178,71 @@ class Medium_Quiz(commands.Cog):
 
         await ctx.send(f"{user.mention}, check your DM for the quiz!")
 
-        for _ in range(no_of_questions):
-            available_questions = [q for q in MEDIUM_QUESTIONS if q not in already_asked_questions]
-            if not available_questions:
-                break
+        try:
+            dm_channel = await user.create_dm()
 
-            question = rd.choice(available_questions)
-            correct_answer = MEDIUM_ANSWERS[MEDIUM_QUESTIONS.index(question)]
-            already_asked_questions.append(question)
+            for _ in range(no_of_questions):
+                available_questions = [q for q in MEDIUM_QUIZ if q not in already_asked_questions]
+                if not available_questions:
+                    await dm_channel.send("No more questions available.")
+                    break
 
-            await user.send(f"**Question:** {question}")
+                question = rd.choice(available_questions)
+                correct_answer = MEDIUM_QUIZ[question]
+                already_asked_questions.append(question)
 
-            def check(msg):
-                return msg.author == user and isinstance(msg.channel, discord.DMChannel)
+                # Send the question to DMs
+                await dm_channel.send(f"**Question:** {question}")
+                timer_message = await dm_channel.send("Time remaining: 10 seconds")
 
-            try:
-                response = await self.bot.wait_for("message", check=check, timeout=20)
-                if response.content.strip().lower() == correct_answer:
-                    medium_score += 1
-                    await user.send("Correct!")
-                else:
-                    await user.send(f"Wrong! The correct answer was: {correct_answer}")
-            except asyncio.TimeoutError:
-                await user.send("You ran out of time!")
+                # Check the answer from the user
+                def check(msg):
+                    return msg.author == user and msg.channel == dm_channel
 
-        await user.send(f"Quiz finished! Your total score is: {medium_score}")
-        await ctx.send(f"{user.mention}, your quiz is complete! Check your DM for your score.")
-        if medium_score == no_of_questions:
-            await assign_role(ctx, HARD_ROLE)
+                question_end_time = datetime.now() + timedelta(seconds=10)
+                answered = False
 
+                async def update_timer():
+                    while datetime.now() < question_end_time:
+                        remaining_time = int((question_end_time - datetime.now()).total_seconds())
+                        await timer_message.edit(content=f"Time remaining: {remaining_time} seconds")
+                        await asyncio.sleep(1)
+
+                async def check_answer():
+                    nonlocal answered
+                    try:
+                        response = await self.bot.wait_for("message", check=check, timeout=10)
+                        if response.content.strip().lower() == correct_answer:
+                            nonlocal medium_score
+                            medium_score += 1
+                            await dm_channel.send("Correct!")
+                        else:
+                            await dm_channel.send(f"Wrong! The correct answer was: {correct_answer}")
+                        answered = True
+                    except asyncio.TimeoutError:
+                        pass
+
+                timer_task = asyncio.create_task(update_timer())
+                answer_task = asyncio.create_task(check_answer())
+
+                await asyncio.wait([timer_task, answer_task], return_when=asyncio.FIRST_COMPLETED)
+
+                if not answered:
+                    await dm_channel.send(f"Time's up! The correct answer was: {correct_answer}")
+
+            # Send final score to the 'medium-quiz' channel
+            medium_quiz_channel = discord.utils.get(ctx.guild.channels, name="medium-quiz")
+            if medium_quiz_channel:
+                await medium_quiz_channel.send(f"{user.mention}, your Medium Quiz is complete! Your total score is: {medium_score}")
+
+            # Assign new role if the user scores perfectly
+            if medium_score == no_of_questions:
+                await assign_role(ctx, HARD_ROLE)
+
+        except discord.Forbidden:
+            await ctx.send(f"{user.mention}, I cannot DM you. Please make sure your DMs are open.")
+        except Exception as e:
+            await ctx.send(f"An error occurred: {str(e)}")
 
 class Hard_Quiz(commands.Cog):
     """Hard-Quiz Cog"""
@@ -174,45 +256,85 @@ class Hard_Quiz(commands.Cog):
         user = ctx.author
         hard_score = 0
         already_asked_questions = []
-        no_of_questions = min(3, len(HARD_QUESTIONS))  # Prevent index errors if there are fewer than 3 questions.
+        no_of_questions = min(10, len(HARD_QUIZ))  # Prevent index errors if there are fewer than 10 questions.
 
+        if not HARD_QUIZ:
+            await ctx.send("No questions are available for the Medium Quiz.")
+            return
+        
         if not check_role(ctx, HARD_ROLE):
             await ctx.send(
-                "You don't have access to the Hard Quiz. Score full marks in the Medium Quiz first!"
+                "You don't have access to the Medium Quiz. Score full marks in the Easy Quiz first!"
             )
             return
 
         await ctx.send(f"{user.mention}, check your DM for the quiz!")
 
-        for _ in range(no_of_questions):
-            available_questions = [q for q in HARD_QUESTIONS if q not in already_asked_questions]
-            if not available_questions:
-                break
+        try:
+            dm_channel = await user.create_dm()
 
-            question = rd.choice(available_questions)
-            correct_answer = HARD_ANSWERS[HARD_QUESTIONS.index(question)]
-            already_asked_questions.append(question)
+            for _ in range(no_of_questions):
+                available_questions = [q for q in HARD_QUIZ if q not in already_asked_questions]
+                if not available_questions:
+                    await dm_channel.send("No more questions available.")
+                    break
 
-            await user.send(f"**Question:** {question}")
+                question = rd.choice(available_questions)
+                correct_answer = HARD_QUIZ[question]
+                already_asked_questions.append(question)
 
-            def check(msg):
-                return msg.author == user and isinstance(msg.channel, discord.DMChannel)
+                # Send the question to DMs
+                await dm_channel.send(f"**Question:** {question}")
+                timer_message = await dm_channel.send("Time remaining: 10 seconds")
 
-            try:
-                response = await self.bot.wait_for("message", check=check, timeout=30)
-                if response.content.strip().lower() == correct_answer:
-                    hard_score += 1
-                    await user.send("Correct!")
-                else:
-                    await user.send(f"Wrong! The correct answer was: {correct_answer}")
-            except asyncio.TimeoutError:
-                await user.send("You ran out of time!")
+                # Check the answer from the user
+                def check(msg):
+                    return msg.author == user and msg.channel == dm_channel
 
-        await user.send(f"Quiz finished! Your total score is: {hard_score}")
-        await ctx.send(f"{user.mention}, your quiz is complete! Check your DM for your score.")
-        if hard_score == no_of_questions:
-            await assign_role(ctx, WINNER_ROLE)
+                question_end_time = datetime.now() + timedelta(seconds=10)
+                answered = False
 
+                async def update_timer():
+                    while datetime.now() < question_end_time:
+                        remaining_time = int((question_end_time - datetime.now()).total_seconds())
+                        await timer_message.edit(content=f"Time remaining: {remaining_time} seconds")
+                        await asyncio.sleep(1)
+
+                async def check_answer():
+                    nonlocal answered
+                    try:
+                        response = await self.bot.wait_for("message", check=check, timeout=10)
+                        if response.content.strip().lower() == correct_answer:
+                            nonlocal hard_score
+                            hard_score += 1
+                            await dm_channel.send("Correct!")
+                        else:
+                            await dm_channel.send(f"Wrong! The correct answer was: {correct_answer}")
+                        answered = True
+                    except asyncio.TimeoutError:
+                        pass
+
+                timer_task = asyncio.create_task(update_timer())
+                answer_task = asyncio.create_task(check_answer())
+
+                await asyncio.wait([timer_task, answer_task], return_when=asyncio.FIRST_COMPLETED)
+
+                if not answered:
+                    await dm_channel.send(f"Time's up! The correct answer was: {correct_answer}")
+
+            # Send final score to the 'medium-quiz' channel
+            hard_quiz_channel = discord.utils.get(ctx.guild.channels, name="Hard-quiz")
+            if hard_quiz_channel:
+                await hard_quiz_channel.send(f"{user.mention}, your Medium Quiz is complete! Your total score is: {medium_score}")
+
+            # Assign new role if the user scores perfectly
+            if hard_score == no_of_questions:
+                await assign_role(ctx, HARD_ROLE)
+
+        except discord.Forbidden:
+            await ctx.send(f"{user.mention}, I cannot DM you. Please make sure your DMs are open.")
+        except Exception as e:
+            await ctx.send(f"An error occurred: {str(e)}")
 
 async def setup(bot):
     await bot.add_cog(Easy_Quiz(bot))
