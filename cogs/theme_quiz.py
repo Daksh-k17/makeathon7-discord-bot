@@ -27,6 +27,9 @@ EASY_ROLE = "Easy"
 MEDIUM_ROLE = "Medium"
 HARD_ROLE = "Hard"
 WINNER_ROLE = "Winner"
+EASY_ATTEMPTED = "easy-attempted"
+MEDIUM_ATTEMPTED = "medium-attempted"
+HARD_ATTEMPTED = "hard-attempted"
 
 # Sample questions and answers
 EASY_QUIZ = {
@@ -80,6 +83,11 @@ class Easy_Quiz(commands.Cog):
         already_asked_questions = []
         no_of_questions = min(10, len(EASY_QUIZ))  # Prevent index errors if there are fewer than 10 questions.
 
+        attempted_role = discord.utils.get(ctx.guild.roles, name="easy-attempted")
+        if attempted_role in user.roles:
+            await ctx.send(f"{user.mention}, you have already attempted the Easy Quiz and cannot retake it.")
+            return
+        
         if not EASY_QUIZ:
             await ctx.send("No questions are available for the Easy Quiz.")
             return
@@ -146,6 +154,8 @@ class Easy_Quiz(commands.Cog):
             # Assign new role if the user scores perfectly
             if easy_score == no_of_questions:
                 await assign_role(ctx, MEDIUM_ROLE)
+            else:
+                await assign_role(ctx, EASY_ATTEMPTED)
 
         except discord.Forbidden:
             await ctx.send(f"{user.mention}, I cannot DM you. Please make sure your DMs are open.")
@@ -165,6 +175,11 @@ class Medium_Quiz(commands.Cog):
         medium_score = 0
         already_asked_questions = []
         no_of_questions = min(10, len(MEDIUM_QUIZ))  # Prevent index errors if there are fewer than 10 questions.
+
+        attempted_role = discord.utils.get(ctx.guild.roles, name="medium-attempted")
+        if attempted_role in user.roles:
+            await ctx.send(f"{user.mention}, you have already attempted the Quiz and cannot retake it.")
+            return
 
         if not MEDIUM_QUIZ:
             await ctx.send("No questions are available for the Medium Quiz.")
@@ -238,6 +253,8 @@ class Medium_Quiz(commands.Cog):
             # Assign new role if the user scores perfectly
             if medium_score == no_of_questions:
                 await assign_role(ctx, HARD_ROLE)
+            else:
+                await assign_role(ctx, MEDIUM_ATTEMPTED)
 
         except discord.Forbidden:
             await ctx.send(f"{user.mention}, I cannot DM you. Please make sure your DMs are open.")
@@ -257,6 +274,11 @@ class Hard_Quiz(commands.Cog):
         hard_score = 0
         already_asked_questions = []
         no_of_questions = min(10, len(HARD_QUIZ))  # Prevent index errors if there are fewer than 10 questions.
+
+        attempted_role = discord.utils.get(ctx.guild.roles, name="hard-attempted")
+        if attempted_role in user.roles:
+            await ctx.send(f"{user.mention}, you have already attempted the Quiz and cannot retake it.")
+            return
 
         if not HARD_QUIZ:
             await ctx.send("No questions are available for the Medium Quiz.")
@@ -330,6 +352,8 @@ class Hard_Quiz(commands.Cog):
             # Assign new role if the user scores perfectly
             if hard_score == no_of_questions:
                 await assign_role(ctx, HARD_ROLE)
+            else:
+                await assign_role(ctx, HARD_ATTEMPTED)
 
         except discord.Forbidden:
             await ctx.send(f"{user.mention}, I cannot DM you. Please make sure your DMs are open.")
